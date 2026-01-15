@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetClassify - Network Asset Classification</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2d2d2d;
+            --border-color: #404040;
+            --table-header: #3d3d3d;
+            --approved: #28a745;
+            --sas: #ffc107;
+            --review: #fd7e14;
+            --deny: #dc3545;
+        }
+
+        [data-theme="light"] {
+            --bg-color: #ffffff;
+            --text-color: #212529;
+            --card-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --table-header: #e9ecef;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-bottom: 3px solid var(--border-color);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .table {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        .table thead th {
+            background-color: var(--table-header);
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-approved { background-color: var(--approved); color: white; }
+        .status-sas { background-color: var(--sas); color: black; }
+        .status-review { background-color: var(--review); color: white; }
+        .status-deny { background-color: var(--deny); color: white; }
+
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            color: var(--text-color);
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="fas fa-network-wired me-2"></i>NetClassify
+            </a>
+            <div class="navbar-nav ms-auto">
+                <button class="theme-toggle me-2" id="themeToggle" title="Toggle Theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <span class="navbar-text">
+                    🌐 11+ Cloud Providers • 25+ SaaS Services
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Scan Configuration -->
+        <div class="card fade-in mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Scan Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="scanForm">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="csvFile" class="form-label">CSV File</label>
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="csvFile" accept=".csv" required>
+                                <button class="btn btn-outline-secondary" type="button" id="uploadBtn">
+                                    <i class="fas fa-upload"></i> Upload
+                                </button>
+                            </div>
+                            <div class="form-text">Upload your asset CSV file</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="statusFilter" class="form-label">Status Filter</label>
+                            <select class="form-control" id="statusFilter">
+                                <option value="not_reviewed">Not Reviewed</option>
+                                <option value="approved">Approved</option>
+                                <option value="sas">SaaS/3rd Party</option>
+                                <option value="review needed">Review Needed</option>
+                                <option value="deny">Deny</option>
+                                <option value="all" selected>All Statuses</option>
+                            </select>
+                            <div class="form-text">Select status to filter assets</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="ownedFile" class="form-label">Owned Assets File</label>
+                            <input type="text" class="form-control" id="ownedFile" value="OwnedAssets.txt"
+                                   placeholder="OwnedAssets.txt">
+                            <div class="form-text">Path to owned assets file</div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-success" id="scanBtn">
+                                    <i class="fas fa-play me-2"></i>Start Scan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Scan Progress -->
+                <div class="mt-3" id="scanProgress" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <div class="progress flex-grow-1 me-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <span id="progressText">Initializing...</span>
+                    </div>
+                </div>
+
+                <!-- Scan Results -->
+                <div class="mt-3" id="scanResults" style="display: none;">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="scanMessage"></span>
+                        <button class="btn btn-sm btn-outline-primary ms-3" id="loadResultsBtn">
+                            <i class="fas fa-eye me-1"></i>View Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Management -->
+        <div class="card fade-in mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder me-2"></i>File Management
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Uploaded Files</h6>
+                        <div id="uploadedFiles" class="list-group list-group-flush">
+                            <div class="list-group-item text-muted">No files uploaded yet</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Output Files</h6>
+                        <div id="outputFiles" class="list-group list-group-flush">
+                            <div class="list-group-item text-muted">No output files yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-4" id="statsRow">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle fa-2x me-3"></i>
+                        <div>
+                            <h4 id="approvedCount">0</h4>
+                            <small>Approved</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-cloud fa-2x me-3"></i>
+                        <div>
+                            <h4 id="sasCount">0</h4>
+                            <small>SaaS/3rd Party</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-search fa-2x me-3"></i>
+                        <div>
+                            <h4 id="reviewCount">0</h4>
+                            <small>Review Needed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-times-circle fa-2x me-3"></i>
+                        <div>
+                            <h4 id="denyCount">0</h4>
+                            <small>Denied</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-table me-2"></i>Asset Classification Results
+                    <span class="badge bg-primary ms-2" id="totalCount">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="loading" id="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading asset classification results...</p>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="resultsTable" class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-hashtag"></i> #</th>
+                                <th><i class="fas fa-globe"></i> Asset</th>
+                                <th><i class="fas fa-info-circle"></i> Status</th>
+                                <th><i class="fas fa-server"></i> IP Address</th>
+                                <th><i class="fas fa-file-alt"></i> Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <!-- Results will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        let dataTable;
+        let currentResults = [];
+        let scanInterval;
+
+        // Theme toggle functionality
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            const body = document.body;
+            const icon = this.querySelector('i');
+
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                icon.className = 'fas fa-sun';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                icon.className = 'fas fa-moon';
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.body.setAttribute('data-theme', savedTheme);
+        document.getElementById('themeToggle').querySelector('i').className =
+            savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+        // File upload functionality
+        document.getElementById('uploadBtn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert(`File uploaded successfully: ${result.filename}`);
+                    loadUploadedFiles();
+                } else {
+                    alert(`Upload failed: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Upload error: ${error.message}`);
+            }
+        });
+
+        // Scan form submission
+        document.getElementById('scanForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const csvFile = document.getElementById('csvFile').files[0];
+            let statusFilter = document.getElementById('statusFilter').value;
+            const ownedFile = document.getElementById('ownedFile').value;
+
+            if (statusFilter === 'all') {
+                statusFilter = 'all';
+            }
+
+            if (!csvFile) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            // Start the scan
+            try {
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        csv_file: csvFile.name,
+                        status_filter: statusFilter,
+                        owned_file: ownedFile
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    document.getElementById('scanProgress').style.display = 'block';
+                    document.getElementById('scanResults').style.display = 'none';
+                    document.getElementById('scanBtn').disabled = true;
+                    document.getElementById('scanBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Scanning...';
+
+                    // Start monitoring scan progress
+                    monitorScanProgress();
+                } else {
+                    alert(`Scan failed: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Scan error: ${error.message}`);
+            }
+        });
+
+        // Start scan with a specific file
+        async function startScanWithFile(filename) {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const ownedFile = document.getElementById('ownedFile').value;
+
+            try {
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        csv_file: filename,
+                        status_filter: statusFilter === 'all' ? 'all' : statusFilter,
+                        owned_file: ownedFile
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    document.getElementById('scanProgress').style.display = 'block';
+                    document.getElementById('scanResults').style.display = 'none';
+                    document.getElementById('scanBtn').disabled = true;
+                    document.getElementById('scanBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Scanning...';
+
+                    // Start monitoring scan progress
+                    monitorScanProgress();
+                } else {
+                    alert(`Scan failed: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Scan error: ${error.message}`);
+            }
+        }
+
+        // Monitor scan progress
+        function monitorScanProgress() {
+            scanInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/scan/status');
+                    const status = await response.json();
+
+                    document.getElementById('progressBar').style.width = `${status.progress}%`;
+                    document.getElementById('progressText').textContent = status.status;
+
+                    if (!status.in_progress) {
+                        clearInterval(scanInterval);
+                        document.getElementById('scanProgress').style.display = 'none';
+                        document.getElementById('scanBtn').disabled = false;
+                        document.getElementById('scanBtn').innerHTML = '<i class="fas fa-play me-2"></i>Start Scan';
+
+                        if (status.progress === 100) {
+                            document.getElementById('scanMessage').textContent = status.status;
+                            document.getElementById('scanResults').style.display = 'block';
+                            loadOutputFiles();
+                            // Automatically load results when scan completes
+                            loadResults();
+                        } else {
+                            alert(`Scan failed: ${status.status}`);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking scan status:', error);
+                }
+            }, 1000);
+        }
+
+        // Load results button
+        document.getElementById('loadResultsBtn').addEventListener('click', function() {
+            loadResults();
+        });
+
+        // Load uploaded files
+        async function loadUploadedFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const files = await response.json();
+
+                const container = document.getElementById('uploadedFiles');
+                if (files.length === 0) {
+                    container.innerHTML = '<div class="list-group-item text-muted">No files uploaded yet</div>';
+                    return;
+                }
+
+                container.innerHTML = files.map(file => `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${file.name}</strong>
+                            <br><small class="text-muted">${(file.size / 1024).toFixed(1)} KB • ${new Date(file.modified).toLocaleString()}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-success scan-file-btn" data-file="${file.name}" title="Scan this file">
+                                <i class="fas fa-play me-1"></i>Scan
+                            </button>
+                            <span class="badge bg-success ms-2">Ready</span>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add scan event listeners
+                document.querySelectorAll('.scan-file-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const filename = this.getAttribute('data-file');
+                        startScanWithFile(filename);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading uploaded files:', error);
+            }
+        }
+
+        // Load output files
+        async function loadOutputFiles() {
+            try {
+                const response = await fetch('/api/files?type=output');
+                const files = await response.json();
+
+                const container = document.getElementById('outputFiles');
+                if (files.length === 0) {
+                    container.innerHTML = '<div class="list-group-item text-muted">No output files yet</div>';
+                    return;
+                }
+
+                container.innerHTML = files.map(file => `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${file.name}</strong>
+                            <br><small class="text-muted">${(file.size / 1024).toFixed(1)} KB • ${new Date(file.modified).toLocaleString()}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary download-btn" data-file="${file.name}">
+                            <i class="fas fa-download me-1"></i>Download
+                        </button>
+                    </div>
+                `).join('');
+
+                // Add download event listeners
+                document.querySelectorAll('.download-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const filename = this.getAttribute('data-file');
+                        window.open(`/api/download/${filename}`, '_blank');
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading output files:', error);
+            }
+        }
+
+        // Load results from API
+        async function loadResults() {
+            try {
+                console.log('Loading results from API...');
+                const response = await fetch('/api/results');
+                const results = await response.json();
+                console.log('Received results:', results.length, 'items');
+                displayResults(results);
+            } catch (error) {
+                console.error('Error loading results:', error);
+                document.getElementById('loading').innerHTML =
+                    '<p class="text-danger">Error loading results. Please run the asset classification tool first.</p>';
+                document.getElementById('loading').style.display = 'block';
+            }
+        }
+
+        function displayResults(results) {
+            console.log('Displaying results:', results.length, 'items');
+            currentResults = results;
+            document.getElementById('loading').style.display = 'none';
+
+            // Save current DataTable state before destroying
+            let currentPage = 0;
+            let currentSearch = '';
+            let currentLength = 25;
+            
+            if (dataTable) {
+                try {
+                    const tableInfo = dataTable.page.info();
+                    currentPage = tableInfo.page;
+                    currentSearch = dataTable.search();
+                    currentLength = tableInfo.length;
+                    dataTable.destroy();
+                } catch (e) {
+                    console.log('Error destroying DataTable:', e);
+                }
+            }
+
+            // Update stats
+            const stats = { Approved: 0, SAS: 0, 'Review Needed': 0, Deny: 0 };
+            results.forEach(result => {
+                const status = result.new_status || result.status || 'Unknown';
+                if (stats.hasOwnProperty(status)) {
+                    stats[status]++;
+                }
+            });
+
+            document.getElementById('approvedCount').textContent = stats.Approved;
+            document.getElementById('sasCount').textContent = stats.SAS;
+            document.getElementById('reviewCount').textContent = stats['Review Needed'];
+            document.getElementById('denyCount').textContent = stats.Deny;
+            document.getElementById('totalCount').textContent = results.length;
+
+            // Populate table
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            if (results.length === 0) {
+                console.log('No results to display');
+                return;
+            }
+
+            results.forEach((result, index) => {
+                const row = document.createElement('tr');
+
+                const status = result.new_status || result.status || 'Unknown';
+                const statusClassMap = {
+                    'Approved': 'status-approved',
+                    'SAS': 'status-sas',
+                    'Review Needed': 'status-review',
+                    'Deny': 'status-deny',
+                    'Unknown': 'status-unknown'
+                };
+                const statusClass = statusClassMap[status] || 'status-unknown';
+
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><strong>${result.asset || result.domain || result.ip || 'Unknown'}</strong></td>
+                    <td><span class="status-badge ${statusClass}">${status}</span></td>
+                    <td><code>${result.ip_address || result.ip || 'N/A'}</code></td>
+                    <td>
+                        <div style="max-width: 400px; white-space: pre-wrap; word-break: break-word; font-size: 0.85rem;">
+                            ${result.details || 'No details'}
+                        </div>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            console.log('Added', results.length, 'rows to tbody');
+
+            // Initialize DataTable with preserved state
+            try {
+                dataTable = $('#resultsTable').DataTable({
+                    pageLength: currentLength,
+                    displayStart: currentPage * currentLength,
+                    search: { search: currentSearch },
+                    order: [[0, 'asc']],
+                    responsive: true,
+                    stateSave: false, // Disable state save to ensure fresh initialization
+                    language: {
+                        search: "🔍 Search assets:",
+                        lengthMenu: "Show _MENU_ entries per page",
+                        info: "Showing _START_ to _END_ of _TOTAL_ assets",
+                        infoEmpty: "No assets found",
+                        infoFiltered: "(filtered from _MAX_ total assets)",
+                        paginate: {
+                            first: "First",
+                            last: "Last",
+                            next: "Next",
+                            previous: "Previous"
+                        }
+                    }
+                });
+                
+                console.log('DataTable initialized successfully with', results.length, 'rows');
+            } catch (e) {
+                console.error('Error initializing DataTable:', e);
+            }
+        }
+
+        // Load results on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadResults();
+            loadUploadedFiles();
+            loadOutputFiles();
+        });
+
+        // Auto-refresh removed - refreshing resets pagination and is disruptive
+        // Results will update when scan completes or user manually clicks "View Results"
+    </script>
+</body>
+</html>

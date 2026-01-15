@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+myenv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+asset_checker.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets & Credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.yaml
+credentials.yaml
+
+# Uploaded data (contains potentially sensitive asset info)
+uploads/*.csv
+uploads/*.txt
+
+# Output results (may contain sensitive scan data)
+output/*.csv
+
+# Docker
+.docker/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

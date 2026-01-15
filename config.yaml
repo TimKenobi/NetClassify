@@ -1,0 +1,122 @@
+# Application configuration
+performance:
+  max_threads: 10
+
+logging:
+  file: asset_checker.log
+  level: INFO
+  format: '%(asctime)s - %(levelname)s - %(message)s'
+
+validation:
+  required_sections:
+    - Known Public IPs
+    - Known Live Domains
+
+# Enhanced cloud provider detection with expanded keywords and IP ranges (IPv4 + IPv6)
+cloud_providers:
+  # Major cloud providers with comprehensive keyword matching
+  aws:
+    name: "Amazon Web Services"
+    keywords: ["amazon", "aws", "amazonaws", "cloudfront", "elb"]
+    ip_ranges: ["52.0.0.0/8", "54.0.0.0/8", "3.0.0.0/8", "13.0.0.0/8", "2406:da00::/32", "2620:107:3000::/48", "2001:4428::/32"]
+  azure:
+    name: "Microsoft Azure"
+    keywords: ["azure", "microsoft", "windowsazure", "azurewebsites", "azureedge"]
+    ip_ranges: ["20.0.0.0/8", "40.64.0.0/10", "104.40.0.0/13", "2a01:111:2000::/48", "2603:1000::/20", "2620:1ec:4::/48"]
+  gcp:
+    name: "Google Cloud Platform"
+    keywords: ["google", "gcp", "googleusercontent", "appspot", "googlesyndication"]
+    ip_ranges: ["34.64.0.0/10", "35.184.0.0/13", "8.34.208.0/20", "2600:1900::/28", "2620:0:1000::/40", "2001:4860:8000::/33"]
+  cloudflare:
+    name: "Cloudflare"
+    keywords: ["cloudflare", "cloudflarestream", "cf-ray"]
+    ip_ranges: ["103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32"]
+  akamai:
+    name: "Akamai Technologies"
+    keywords: ["akamai", "akamaiedge", "akamaihd", "akamaitechnologies"]
+    ip_ranges: ["23.0.0.0/8", "104.64.0.0/10", "2a02:26f0::/32", "2a03:ebc0::/32"]
+  digitalocean:
+    name: "DigitalOcean"
+    keywords: ["digitalocean", "digitaloceanspaces", "do-spaces"]
+    ip_ranges: ["159.65.0.0/16", "167.99.0.0/16", "178.62.0.0/16", "2400:6180::/32"]
+  linode:
+    name: "Linode"
+    keywords: ["linode", "linodeusercontent", "linodeobjects"]
+    ip_ranges: ["173.255.0.0/16", "96.126.0.0/16", "69.164.0.0/16", "2600:3c00::/32", "2a01:7e00::/32"]
+  heroku:
+    name: "Heroku"
+    keywords: ["heroku", "herokuapp", "herokudns"]
+    ip_ranges: ["50.16.0.0/15", "107.21.0.0/16", "174.129.0.0/16"]
+  netlify:
+    name: "Netlify"
+    keywords: ["netlify", "netlify.app", "netlifycdn"]
+    ip_ranges: ["104.198.14.52/32"]
+  vercel:
+    name: "Vercel"
+    keywords: ["vercel", "vercel.app", "now.sh"]
+    ip_ranges: ["76.76.19.0/24", "76.223.126.88/32"]
+  fastly:
+    name: "Fastly CDN"
+    keywords: ["fastly", "fastly.net", "fastlylb"]
+    ip_ranges: ["151.101.0.0/16", "199.232.0.0/16", "2a04:e4c0::/32", "2a04:e4c1::/32"]
+
+# Legacy third_party_services for backward compatibility
+third_party_services:
+  amazon: AWS
+  amazonaws: AWS
+  cloudfront: AWS CloudFront
+  azure: Azure
+  microsoft: Azure
+  windowsazure: Azure
+  google: Google Cloud
+  gcp: Google Cloud
+  googleusercontent: Google Cloud
+  cloudflare: Cloudflare
+  akamai: Akamai
+  digitalocean: DigitalOcean
+  linode: Linode
+  heroku: Heroku
+  netlify: Netlify
+  vercel: Vercel
+  fastly: Fastly
+  appspot: Google App Engine
+  azurewebsites: Azure Web Apps
+  azureedge: Azure CDN
+  herokuapp: Heroku
+  # Enhanced SaaS service detection
+  salesforce: Salesforce
+  hubspot: HubSpot
+  mailchimp: Mailchimp
+  stripe: Stripe
+  twilio: Twilio
+  sendgrid: SendGrid
+  auth0: Auth0
+  okta: Okta
+  slack: Slack
+  zoom: Zoom
+  notion: Notion
+  figma: Figma
+  github: GitHub
+  atlassian: Atlassian
+  dropbox: Dropbox
+  box: Box
+  onedrive: Microsoft OneDrive
+  sharepoint: Microsoft SharePoint
+  office365: Microsoft Office 365
+  teams: Microsoft Teams
+  outlook: Microsoft Outlook
+  servicenow: ServiceNow
+  workday: Workday
+  sap: SAP
+  oracle: Oracle Cloud
+  ibm: IBM Cloud
+  adobe: Adobe Creative Cloud
+  shopify: Shopify
+  squarespace: Squarespace
+  wix: Wix
+  wordpress: WordPress.com
+  godaddy: GoDaddy
+  awsapps: AWS SSO
+
+defaults:
+  output_file: asset_check_results.csv
