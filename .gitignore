@@ -36,12 +36,17 @@ Thumbs.db
 secrets.yaml
 credentials.yaml
 
+# Sensitive asset data - NEVER commit these
+OwnedAssets.txt
+
 # Uploaded data (contains potentially sensitive asset info)
 uploads/*.csv
 uploads/*.txt
+uploads/
 
 # Output results (may contain sensitive scan data)
 output/*.csv
+output/
 
 # Docker
 .docker/

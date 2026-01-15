@@ -1,0 +1,18 @@
+# NetClassify - Owned Assets Template
+# Copy this file to OwnedAssets.txt and customize with your organization's assets
+# DO NOT commit OwnedAssets.txt to version control - it contains sensitive data
+
+Known Public IPs
+# Add your organization's public IP addresses and CIDR ranges
+# Examples:
+# 192.168.1.0/24
+# 10.0.0.0/8
+# 203.0.113.50/32
+# 2001:db8::/32
+
+Known Live Domains
+# Add your organization's domains (supports wildcard patterns)
+# Examples:
+# example.com
+# *.subdomain.example.com
+# internal.example.org
