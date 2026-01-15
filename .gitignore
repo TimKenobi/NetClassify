@@ -55,3 +55,6 @@ output/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# GitHub Actions/Agents (may contain internal references)
+.github/
