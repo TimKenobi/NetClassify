@@ -68,7 +68,7 @@ cloud_providers:
 
 **Deliverables:**
 - Enhanced domain matching logic
-- Support for patterns like `*.stahls.com`
+- Support for patterns like `*.example.com`
 - Reduced false negatives in ownership detection
 
 ---
