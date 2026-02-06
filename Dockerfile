@@ -40,9 +40,13 @@ python web_gui.py' > /app/start.sh && chmod +x /app/start.sh
 COPY health_check.sh /app/health_check.sh
 RUN chmod +x /app/health_check.sh
 
-# Health check
+# Create non-root user for security (principle of least privilege)
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health check (using python instead of curl for minimal requirements)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:5001/ || exit 1
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/').read()" || exit 1
 
 # Run the application
 CMD ["/app/start.sh"]
