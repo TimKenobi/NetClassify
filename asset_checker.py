@@ -9,6 +9,7 @@ from tqdm import tqdm
 import whois
 from collections import Counter
 import logging
+from logging.handlers import RotatingFileHandler
 import traceback
 import os
 import sys
@@ -60,12 +61,26 @@ except Exception as e:
     logging.error(f"Configuration error: {str(e)}")
     raise
 
-# Configure logging from config
+# Configure logging from config with rotation enabled
+log_file = config['logging']['file']
+log_level = getattr(logging, config['logging']['level'])
+log_format = config['logging']['format']
+
+# Create rotating file handler (10MB max, 5 backups)
+rotating_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5,           # Keep 5 rotated logs
+    encoding='utf-8'
+)
+rotating_handler.setFormatter(logging.Formatter(log_format))
+
+# Configure logging with both file and console output
 logging.basicConfig(
-    level=getattr(logging, config['logging']['level']),
-    format=config['logging']['format'],
+    level=log_level,
+    format=log_format,
     handlers=[
-        logging.FileHandler(config['logging']['file']),
+        rotating_handler,
         logging.StreamHandler()
     ]
 )

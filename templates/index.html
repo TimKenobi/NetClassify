@@ -149,9 +149,12 @@
                 <button class="theme-toggle me-2" id="themeToggle" title="Toggle Theme">
                     <i class="fas fa-moon"></i>
                 </button>
-                <span class="navbar-text">
+                <span class="navbar-text me-3">
                     🌐 11+ Cloud Providers • 25+ SaaS Services
                 </span>
+                <button class="btn btn-outline-light btn-sm" id="logoutBtn" title="Logout">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </button>
             </div>
         </div>
     </nav>
@@ -347,6 +350,27 @@
         let currentResults = [];
         let scanInterval;
 
+        // Security: HTML escape function to prevent XSS attacks
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Security: API call wrapper with authentication error handling
+        async function apiCall(url, opts = {}) {
+            const response = await fetch(url, opts);
+            
+            // Handle 401 Unauthorized - redirect to login
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            
+            return response;
+        }
+
         // Theme toggle functionality
         document.getElementById('themeToggle').addEventListener('click', function() {
             const body = document.body;
@@ -368,6 +392,19 @@
         document.body.setAttribute('data-theme', savedTheme);
         document.getElementById('themeToggle').querySelector('i').className =
             savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', async function() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await fetch('/logout', { method: 'POST' });
+                    window.location.href = '/login';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    window.location.href = '/login';
+                }
+            }
+        });
 
         // File upload functionality
         document.getElementById('uploadBtn').addEventListener('click', async function() {
@@ -672,12 +709,12 @@
 
                 row.innerHTML = `
                     <td>${index + 1}</td>
-                    <td><strong>${result.asset || result.domain || result.ip || 'Unknown'}</strong></td>
-                    <td><span class="status-badge ${statusClass}">${status}</span></td>
-                    <td><code>${result.ip_address || result.ip || 'N/A'}</code></td>
+                    <td><strong>${escapeHtml(result.asset || result.domain || result.ip || 'Unknown')}</strong></td>
+                    <td><span class="status-badge ${statusClass}">${escapeHtml(status)}</span></td>
+                    <td><code>${escapeHtml(result.ip_address || result.ip || 'N/A')}</code></td>
                     <td>
                         <div style="max-width: 400px; white-space: pre-wrap; word-break: break-word; font-size: 0.85rem;">
-                            ${result.details || 'No details'}
+                            ${escapeHtml(result.details || 'No details')}
                         </div>
                     </td>
                 `;
