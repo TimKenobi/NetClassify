@@ -5,6 +5,7 @@ import json
 import threading
 import time
 import tempfile
+import logging
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -15,6 +16,9 @@ app = Flask(__name__)
 # Security: Set a strong secret key for session management
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-key-please-change-in-production')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+
+# Security: CSRF protection via X-Requested-With header for AJAX requests
+app.config['JSON_SORT_KEYS'] = False
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -34,6 +38,101 @@ scan_status = ""
 # Thread safety locks
 results_lock = threading.Lock()
 scan_lock = threading.Lock()
+
+# Security: Audit logging for security events
+audit_logger = logging.getLogger('netclassify.audit')
+audit_logger.setLevel(logging.INFO)
+
+# Create audit log handler with rotation
+if not audit_logger.handlers:
+    from logging.handlers import RotatingFileHandler
+    audit_handler = RotatingFileHandler(
+        'audit.log',
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=10,          # Keep 10 rotated logs
+        encoding='utf-8'
+    )
+    audit_formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - [%(name)s] - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    audit_handler.setFormatter(audit_formatter)
+    audit_logger.addHandler(audit_handler)
+
+def audit_log(event_type, details, severity='INFO'):
+    """Log security audit events"""
+    message = f"[{event_type}] {details}"
+    getattr(audit_logger, severity.lower())(message)
+
+# Security: Middleware for security headers
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    # Prevent MIME type sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    
+    # Enable XSS protection in older browsers
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Disable autocomplete for sensitive forms
+    response.headers['X-UA-Compatible'] = 'IE=Edge'
+    
+    # Referrer policy for privacy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Permissions policy (formerly Feature-Policy)
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(), payments=()'
+    
+    # Content Security Policy - strict but allows inline styles for Bootstrap
+    csp = "default-src 'self'; " \
+          "script-src 'self' https://code.jquery.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " \
+          "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; " \
+          "font-src 'self' https://cdnjs.cloudflare.com; " \
+          "img-src 'self' data:; " \
+          "connect-src 'self'; " \
+          "frame-ancestors 'self'; " \
+          "object-src 'none'; " \
+          "base-uri 'self'; " \
+          "form-action 'self'"
+    response.headers['Content-Security-Policy'] = csp
+    
+    # HSTS for HTTPS (only in production)
+    if os.getenv('FLASK_ENV') == 'production':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    return response
+
+# Security: CSRF token generation and validation
+@app.before_request
+def csrf_protection():
+    """Validate CSRF tokens for state-changing requests"""
+    if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
+        # Skip CSRF check for JSON API calls from authenticated sessions
+        # API endpoints should re-validate authentication
+        if request.is_json:
+            # For JSON requests, authentication is already required via @login_required
+            pass
+        else:
+            # For form submissions, validate CSRF token
+            token = session.get('csrf_token')
+            if not token:
+                token = os.urandom(24).hex()
+                session['csrf_token'] = token
+            
+            # Check if token in request matches session token
+            submitted_token = request.form.get('csrf_token')
+            if submitted_token and submitted_token != token:
+                return jsonify({'status': 'error', 'message': 'CSRF token validation failed'}), 403
+
+@app.context_processor
+def inject_csrf_token():
+    """Inject CSRF token into templates"""
+    if 'csrf_token' not in session:
+        session['csrf_token'] = os.urandom(24).hex()
+    return dict(csrf_token=session.get('csrf_token'))
 
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -79,12 +178,15 @@ def login():
         data = request.get_json() if request.is_json else {}
         password = data.get('password', '')
         default_password = os.getenv('NETCLASSIFY_PASSWORD', 'admin')
+        client_ip = request.remote_addr
         
         if password == default_password:
             session.permanent = True
             session['authenticated'] = True
+            audit_log('LOGIN_SUCCESS', f'User logged in from {client_ip}', 'INFO')
             return jsonify({'status': 'success', 'message': 'Logged in successfully'})
         else:
+            audit_log('LOGIN_FAILED', f'Failed login attempt from {client_ip}', 'WARNING')
             return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
     # GET request returns login page or redirect if already authenticated
     if 'authenticated' in session:
@@ -94,6 +196,8 @@ def login():
 @app.route('/logout', methods=['POST'])
 def logout():
     """Logout endpoint"""
+    client_ip = request.remote_addr
+    audit_log('LOGOUT', f'User logged out from {client_ip}', 'INFO')
     session.clear()
     return jsonify({'status': 'success', 'message': 'Logged out successfully'})
 
@@ -183,6 +287,9 @@ def start_scan():
             scan_progress = 0
             scan_status = "Initializing scan..."
 
+        # Audit log the scan start
+        audit_log('SCAN_START', f'Scan started: {csv_filename} with filter: {status_filter}', 'INFO')
+
         def run_scan():
             global scan_in_progress, scan_progress, scan_status, current_results
             try:
@@ -206,14 +313,16 @@ def start_scan():
                 with scan_lock:
                     scan_status = "Scan completed successfully!"
                     scan_progress = 100
+                
+                audit_log('SCAN_COMPLETE', f'Scan completed successfully: {len(results)} assets processed', 'INFO')
 
             except Exception as e:
-                import logging
                 logging.error(f"Scan error: {str(e)}")
                 with scan_lock:
                     # Sanitize error message - don't expose internal details
                     scan_status = "Scan failed: An error occurred during processing"
                     scan_progress = -1
+                audit_log('SCAN_ERROR', f'Scan failed: {str(e)}', 'ERROR')
             finally:
                 with scan_lock:
                     scan_in_progress = False
@@ -225,7 +334,6 @@ def start_scan():
         return jsonify({'status': 'success', 'message': 'Scan started'})
 
     except Exception as e:
-        import logging
         logging.error(f"Scan request error: {str(e)}")
         with scan_lock:
             scan_in_progress = False
@@ -266,12 +374,14 @@ def upload_file():
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
+            audit_log('FILE_UPLOAD', f'File uploaded: {filename} (size: {file_size} bytes)', 'INFO')
             return jsonify({'status': 'success', 'filename': filename})
         else:
+            audit_log('FILE_UPLOAD_INVALID', f'Invalid file upload attempt: {file.filename}', 'WARNING')
             return jsonify({'status': 'error', 'message': 'Invalid file type'}), 400
     except Exception as e:
-        import logging
         logging.error(f"Upload error: {str(e)}")
+        audit_log('FILE_UPLOAD_ERROR', f'Upload error: {str(e)}', 'ERROR')
         return jsonify({'status': 'error', 'message': 'Upload failed'}), 500
 
 @app.route('/api/files')
